@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass, field
 from statistics import median
 
-BULLET_RE = re.compile(r"^\s*([•·▪●◦■□▶►\-–—*]|\(?\d{1,2}[.)]|\(?[a-zA-Z][.)])\s+")
+BULLET_RE = re.compile(r"^\s*([•·▪●◦■□▶►](?=\s*\S)|[\-–—*](?=\s)|\(?\d{1,2}[.)](?=\s)|\(?[a-zA-Z][.)](?=\s))\s*")
 URL_RE = re.compile(r"(https?://|www\.)\S+|\b\S+\.(com|net|org|io|kr)(/\S*)?\b", re.I)
 SENT_END_RE = re.compile(r"[.!?:;。\"'”’)]\s*$")
 

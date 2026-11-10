@@ -176,6 +176,57 @@ def fit_text(text, font, box_w, box_h, line_h, pitch, max_w=None):
 
 # ───────── 페이지 그리기 ─────────
 
+def ink_left(rgb, ln, bg):
+    """OCR 상자는 여백이 조금 붙어 있어서, 실제 글자가 시작되는 x를 픽셀로 찾는다."""
+    x0, y0, x1, y1 = [int(round(v)) for v in (ln.x0, ln.y0, ln.x1, ln.y1)]
+    reg = rgb[max(0, y0):y1, max(0, x0):x1].astype(int)
+    if reg.size == 0:
+        return None
+    cols = np.where((np.abs(reg - np.array(bg)).max(axis=2) > 60).any(axis=0))[0]
+    return x0 + int(cols[0]) if len(cols) else None
+
+
+def text_start_after_bullet(rgb, ln, bg):
+    """글머리표가 있는 줄에서 '기호 다음 글자'가 시작되는 x를 픽셀로 찾는다 (원본 들여쓰기 그대로)."""
+    x0, y0, x1, y1 = [int(round(v)) for v in (ln.x0, ln.y0, ln.x1, ln.y1)]
+    reg = rgb[max(0, y0):y1, max(0, x0):x1].astype(int)
+    if reg.size == 0:
+        return None
+    ink = (np.abs(reg - np.array(bg)).max(axis=2) > 60).any(axis=0)
+    cols = np.where(ink)[0]
+    if len(cols) == 0:
+        return None
+    i = cols[0]
+    while i < len(ink) and ink[i]:
+        i += 1  # 기호 덩어리 지나감
+    gap_start = i
+    while i < len(ink) and not ink[i]:
+        i += 1  # 빈칸
+    if i >= len(ink) or i - gap_start < 2:
+        return None
+    return x0 + i
+
+
+def size_classes(paras):
+    """OCR 줄 높이는 g·p 같은 아래로 내려가는 글자 유무로 들쭉날쭉함 →
+    비슷한 높이(±15%)끼리 묶어서 같은 글자 크기로 통일 (같은 목록 항목끼리 크기가 달라지지 않게)"""
+    hs = sorted((float(np.median([l.h for l in p.lines])), i) for i, p in enumerate(paras))
+    ref = {}
+    group = []
+    for h, i in hs:
+        if group and h > group[0][0] * 1.15:
+            m = max(g[0] for g in group)
+            for _, j in group:
+                ref[j] = m
+            group = []
+        group.append((h, i))
+    if group:
+        m = max(g[0] for g in group)
+        for _, j in group:
+            ref[j] = m
+    return ref
+
+
 def render_page(c, rgb, paras, area, font, font_b):
     ax0, ay0, ax1, ay1 = area
     img = rgb[ay0:ay1, ax0:ax1].copy()
@@ -202,22 +253,24 @@ def render_page(c, rgb, paras, area, font, font_b):
             X0, Y0 = int(ln.x0 - px - ax0), int(ln.y0 - py - ay0)
             X1, Y1 = int(np.ceil(ln.x1 + px - ax0)), int(np.ceil(ln.y1 + py - ay0))
             img[max(0, Y0):max(0, Y1), max(0, X0):max(0, X1)] = lb
-        plans.append((p, color))
+        plans.append((p, color, bg0))
 
     c.drawImage(ImageReader(Image.fromarray(img)), 0, 0, width=PAGE_W, height=page_h)
 
-    for p, color in plans:
+    ref_h = size_classes([p for p, _, _ in plans])
+    for idx, (p, color, bgc) in enumerate(plans):
         lines = p.lines
-        line_h = float(np.median([l.h for l in lines]))
+        line_h = ref_h.get(idx, float(np.median([l.h for l in lines])))
         pitch = float(np.median([b.y0 - a.y0 for a, b in zip(lines, lines[1:])])) if len(lines) > 1 else None
         f = font_b if p.kind == "h" else font
-        x_text = p.x0
+        x_ink = ink_left(rgb, lines[0], bgc) or p.x0
+        x_text = x_ink
         bullet = False
         if p.kind == "b" and BULLET_RE.match(lines[0].text) and not BULLET_RE.match(p.text):
             bullet = True  # 원본 글머리표 기호도 같이 지워졌으니 다시 그림
-            x_text = p.x0 + line_h * 0.95
+            x_text = text_start_after_bullet(rgb, lines[0], bgc) or (x_ink + line_h * 0.95)
         box_w = p.x1 - x_text
-        others_right = [q.x0 for q, _ in plans if q is not p and q.x0 > p.x1 and q.y0 < p.y1 and q.y1 > p.y0]
+        others_right = [q.x0 for q, _, _ in plans if q is not p and q.x0 > p.x1 and q.y0 < p.y1 and q.y1 > p.y0]
         max_w = (min(others_right) - 10 if others_right else ax1 - 12) - x_text
         fs, lead, out_lines, _ = fit_text(p.translated.strip(), f, box_w, p.y1 - p.y0, line_h, pitch,
                                           max_w=max_w if len(lines) == 1 else None)
@@ -229,7 +282,7 @@ def render_page(c, rgb, paras, area, font, font_b):
             c.setFont(f, fs * s)
             c.drawString((x_text - ax0) * s, y_pdf, t)
             if bullet and k == 0:
-                c.drawString((p.x0 - ax0) * s, y_pdf, "•")
+                c.drawString((x_ink - ax0) * s, y_pdf, "•")
     c.showPage()
 
 
