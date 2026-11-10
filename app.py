@@ -290,7 +290,7 @@ class App:
         row.pack(fill="x", pady=(0, 6))
         ttk.Label(row, text="녹화할 화면").pack(side="left")
         self.mon_var = tk.StringVar()
-        self.mon_cb = ttk.Combobox(row, state="readonly", width=34, textvariable=self.mon_var,
+        self.mon_cb = ttk.Combobox(row, state="readonly", width=30, textvariable=self.mon_var,
                                    values=[m["name"] for m in self.monitors])
         idx = min(self.s.get("monitor", 0), max(0, len(self.monitors) - 1))
         if self.monitors:
