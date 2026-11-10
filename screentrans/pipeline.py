@@ -24,8 +24,9 @@ def _crop_to_text(img_path, paras, out_path, margin=40):
 
 
 def process(image_paths, out_dir, filter_chrome=True, show_original=True, include_images=False,
-            progress=None, translator=translate_many, title=None):
-    """반환: {"pdf", "txt", "pages", "warning"}"""
+            progress=None, translator=translate_many, title=None, style="layout"):
+    """style: "layout" = 원본 모양 그대로(사진 포함, 영어 자리에 한국어) / "text" = 번역문만 정리
+    반환: {"pdf", "txt", "pages", "warning", "backend"}"""
     def report(msg, frac):
         if progress:
             progress(msg, frac)
@@ -45,7 +46,8 @@ def process(image_paths, out_dir, filter_chrome=True, show_original=True, includ
     if filter_chrome:
         pages_lines = layout.remove_screen_chrome(pages_lines, frame_h)
     pages = [layout.finalize(layout.group_paragraphs(lines)) for lines in pages_lines]
-    layout.dedupe_overlap(pages)
+    if style == "text":
+        layout.dedupe_overlap(pages)  # 원본 모양 모드에선 화면을 그대로 살려야 하니 중복 제거 안 함
 
     flat = [p for paras in pages for p in paras]
     report(f"번역 중… (문단 {len(flat)}개)", 0.68)
@@ -65,6 +67,21 @@ def process(image_paths, out_dir, filter_chrome=True, show_original=True, includ
     stamp = time.strftime("%Y-%m-%d_%H%M")
     pdf_path = os.path.join(out_dir, f"번역_{stamp}.pdf")
     txt_path = os.path.join(out_dir, f"번역_{stamp}.txt")
+    if style == "layout":
+        from .relayout import build_layout_pdf, document_area, union_area
+        report("원본 모양으로 PDF 만드는 중…", 0.95)
+        areas = []
+        for ip, paras in zip(image_paths, pages):
+            rgb = load_rgb(ip)
+            areas.append(document_area(rgb, paras) if filter_chrome else (0, 0, rgb.shape[1], rgb.shape[0]))
+        if filter_chrome and len(areas) > 1:
+            areas = [union_area(areas)] * len(areas)  # 페이지마다 같은 크기로
+        build_layout_pdf(pdf_path, image_paths, pages, areas,
+                         title=title or f"화면 번역 · {time.strftime('%Y-%m-%d %H:%M')}")
+        build_text(txt_path, pages)
+        report("완료", 1.0)
+        return {"pdf": pdf_path, "txt": txt_path, "pages": pages, "warning": warning, "backend": _tr.last_backend}
+
     images = None
     if include_images:
         images = [_crop_to_text(p, paras, os.path.join(out_dir, f"_crop_{i + 1:03d}.png"))

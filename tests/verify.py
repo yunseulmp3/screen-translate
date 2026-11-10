@@ -20,7 +20,7 @@ for out, want_pages in zip(sys.argv[1::2], sys.argv[2::2]):
         import pypdfium2 as pdfium
         pdf = pdfium.PdfDocument(r["pdf"])
         for i in range(min(2, len(pdf))):
-            pdf[i].render(scale=1.2).to_pil().save(os.path.join("ci-results", f"{os.path.basename(out)}_p{i+1}.png"))
+            pdf[i].render(scale=1.6).to_pil().save(os.path.join("ci-results", f"{os.path.basename(out)}_p{i+1}.png"))
     except Exception as e:
         report.append("render fail: " + repr(e))
 

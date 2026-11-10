@@ -48,7 +48,7 @@ def log(msg):
         pass
 
 
-DEFAULTS = {"monitor": 0, "pick_region": False, "show_original": True, "include_images": False, "beep": True}
+DEFAULTS = {"monitor": 0, "pick_region": False, "style": "layout", "beep": True}
 
 
 def load_settings():
@@ -132,6 +132,16 @@ def foreground_hwnd():
     return ctypes.windll.user32.GetForegroundWindow()
 
 
+def own_window_on_screen(hwnd):
+    """이 프로그램 창이 '내려가 있지 않고' 맨 앞에 있을 때만 True.
+    (창을 내려도 윈도우가 그 창을 계속 '활성 창'으로 잡고 있는 경우가 있어서 최소화 여부를 같이 봐야 함)"""
+    if not IS_WIN or not hwnd:
+        return False
+    import ctypes
+    u = ctypes.windll.user32
+    return u.GetForegroundWindow() == hwnd and not u.IsIconic(hwnd) and bool(u.IsWindowVisible(hwnd))
+
+
 def beep(kind="page"):
     if not IS_WIN:
         return
@@ -167,6 +177,7 @@ class Recorder:
         self._stop = threading.Event()
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.error = None
+        self.stats = {"grabbed": 0, "skipped_own": 0, "fg_own_minimized": 0}
 
     def _on_page(self, rgb, n):
         from screentrans.imageio import save_png
@@ -181,6 +192,13 @@ class Recorder:
     def stop(self):
         self._stop.set()
         self.thread.join(timeout=5)
+        log(f"녹화 통계: {self.stats}, 저장 {len(self.paths)}장")
+        if not self.paths and self.det.last_frame is not None:
+            try:  # 원인 확인용: 마지막으로 찍힌 화면을 남겨둠
+                from screentrans.imageio import save_png
+                save_png(os.path.join(os.path.dirname(self.cap_dir), "_마지막화면.png"), self.det.last_frame)
+            except Exception:
+                pass
         return self.paths
 
     def _run(self):
@@ -190,10 +208,16 @@ class Recorder:
             with mss.mss() as sct:
                 while not self._stop.is_set():
                     t0 = time.monotonic()
-                    if self.own_hwnd and foreground_hwnd() == self.own_hwnd:
-                        time.sleep(self.interval)  # 이 프로그램 창이 앞에 있으면 찍지 않음
+                    if self.own_hwnd and foreground_hwnd() == self.own_hwnd and IS_WIN:
+                        import ctypes
+                        if ctypes.windll.user32.IsIconic(self.own_hwnd):
+                            self.stats["fg_own_minimized"] += 1  # 예전 버그 상황(내려간 창이 활성으로 남음) 기록용
+                    if own_window_on_screen(self.own_hwnd):
+                        self.stats["skipped_own"] += 1
+                        time.sleep(self.interval)  # 이 프로그램 창이 화면에 떠 있으면 찍지 않음
                         continue
                     shot = sct.grab(self.rect)
+                    self.stats["grabbed"] += 1
                     rgb = np.asarray(shot)[:, :, 2::-1]  # BGRA → RGB
                     self.det.feed(rgb, t0)
                     time.sleep(max(0.0, self.interval - (time.monotonic() - t0)))
@@ -298,12 +322,14 @@ class App:
         self.mon_cb.pack(side="right")
 
         self.v_region = tk.BooleanVar(value=self.s["pick_region"])
-        self.v_orig = tk.BooleanVar(value=self.s["show_original"])
-        self.v_imgs = tk.BooleanVar(value=self.s["include_images"])
+        self.v_style = tk.StringVar(value=self.s.get("style", "layout"))
         self.v_beep = tk.BooleanVar(value=self.s["beep"])
+        ttk.Label(fr, text="결과 PDF 모양").pack(anchor="w", pady=(6, 0))
+        for val, txt in (("layout", "원본 모양 그대로 — 사진·배치 유지, 영어 자리에 한국어"),
+                         ("text", "번역문만 정리 — 한국어 + 영어 원문 작게")):
+            ttk.Radiobutton(fr, text=txt, value=val, variable=self.v_style, command=self._save).pack(anchor="w", padx=(10, 0))
+        ttk.Label(fr, text="").pack()
         for var, txt in ((self.v_region, "시작할 때 번역할 부분만 드래그로 고르기"),
-                         (self.v_orig, "PDF에 영어 원문도 작게 같이 넣기"),
-                         (self.v_imgs, "PDF에 캡처한 화면 사진도 넣기"),
                          (self.v_beep, "한 장 저장될 때마다 '삑' 소리")):
             ttk.Checkbutton(fr, text=txt, variable=var, command=self._save).pack(anchor="w", pady=1)
 
@@ -331,7 +357,7 @@ class App:
     # ── 기타 ──
     def _save(self):
         self.s.update(monitor=self.mon_cb.current(), pick_region=self.v_region.get(),
-                      show_original=self.v_orig.get(), include_images=self.v_imgs.get(), beep=self.v_beep.get())
+                      style=self.v_style.get(), beep=self.v_beep.get())
         save_settings(self.s)
 
     def _setup_hotkey(self):
@@ -431,7 +457,12 @@ class App:
             self._error(f"녹화 중 오류가 났어요: {rec.error}")
             return
         if not paths:
-            self.status.set("저장된 화면이 없어요. 넘긴 뒤 1초 정도 멈춰 주세요.")
+            st = rec.stats
+            if st["grabbed"] == 0:
+                self.status.set("화면을 한 장도 못 찍었어요. (프로그램 창이 계속 앞에 있었음) "
+                                "(기록: %APPDATA%\\ScreenTranslate\\log.txt)")
+            else:
+                self.status.set(f"저장된 화면이 없어요. (찍은 프레임 {st['grabbed']}개) 넘긴 뒤 1초 정도 멈춰 주세요.")
             return
         self.run_pipeline(paths, self.session, filter_chrome=not self.picked)
 
@@ -471,8 +502,7 @@ class App:
     def _pipeline_work(self, paths, session, filter_chrome):
         from screentrans import pipeline
         try:
-            res = pipeline.process(paths, session, filter_chrome=filter_chrome,
-                                   show_original=self.v_orig.get(), include_images=self.v_imgs.get(),
+            res = pipeline.process(paths, session, filter_chrome=filter_chrome, style=self.v_style.get(),
                                    progress=lambda m, f: self.q.put(("progress", m, f)))
             self.q.put(("done", res["pdf"], res.get("warning"), session, len(paths)))
         except Exception as e:
@@ -542,7 +572,7 @@ def cli(args):
     paths = list(args.images or [])
     if args.video:
         paths += extract_video(args.video, os.path.join(out, "캡처"), start_index=len(paths) + 1)
-    res = pipeline.process(paths, out, filter_chrome=True, include_images=args.include_images)
+    res = pipeline.process(paths, out, filter_chrome=True, include_images=args.include_images, style=args.style)
     summary = {"pages": len(paths), "pdf": res["pdf"], "txt": res["txt"], "warning": res.get("warning"), "backend": res.get("backend"),
                "paragraphs": sum(len(p) for p in res["pages"])}
     with open(os.path.join(out, "result.json"), "w", encoding="utf-8") as f:
@@ -557,6 +587,7 @@ def main():
     ap.add_argument("--video")
     ap.add_argument("--out")
     ap.add_argument("--include-images", action="store_true")
+    ap.add_argument("--style", default="layout", choices=["layout", "text"])
     args = ap.parse_args()
     if args.images or args.video:
         try:

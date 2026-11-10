@@ -121,7 +121,7 @@ def group_paragraphs(lines):
             if not (-0.3 * ph <= gap <= max_gap):
                 continue
             # 글자 크기가 비슷해야 함 (제목/본문 분리)
-            if not (0.75 <= ln.h / ph <= 1.33):
+            if not (0.82 <= ln.h / ph <= 1.22):
                 continue
             # 가로로 겹쳐야 함 (다른 단 X)
             if ln.x1 < p.x0 or ln.x0 > p.x1:
@@ -133,6 +133,9 @@ def group_paragraphs(lines):
                 break  # 글머리표는 항상 새 문단
             # 앞 줄이 문장 끝 + 오른쪽이 많이 비어 있으면 문단 끝
             if SENT_END_RE.search(last.text) and last.x1 < p.x1 - 3 * ph:
+                break
+            # 글머리표 항목: 앞 줄이 문장으로 끝나고 이번 줄이 대문자로 시작하면 다음 항목 (기호를 OCR이 놓친 경우)
+            if _starts_bullet(p.lines[0].text) and re.search(r"[.!?:]\s*$", last.text) and ln.text[:1].isupper():
                 break
             target = p
             break
@@ -203,6 +206,8 @@ def finalize(paras):
                 p.text = p.text[m.end():].strip()  # 기호 글머리표는 PDF에서 다시 붙임
         elif p.h >= 1.2 * body_h and len(p.lines) <= 3:
             p.kind = "h"
+        elif p.h >= 1.1 * body_h and len(p.lines) == 1 and len(p.text) < 60 and not SENT_END_RE.search(p.text):
+            p.kind = "h"  # 조금 큰 한 줄짜리 소제목
     # OCR이 글머리표 기호(•)를 놓친 줄: 바로 위 글머리표 항목의 글자 시작 위치와 같으면 글머리표로
     by_y = sorted(paras, key=lambda p: p.y0)
     for a, b in zip(by_y, by_y[1:]):
