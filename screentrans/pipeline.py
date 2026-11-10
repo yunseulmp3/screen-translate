@@ -3,10 +3,24 @@ import os
 import time
 
 from . import layout, ocr
-from .imageio import load_rgb
+from .imageio import load_rgb, save_png
 from .pdf import build_pdf, build_text
 from . import translate as _tr
 from .translate import TranslateError, translate_many
+
+
+def _crop_to_text(img_path, paras, out_path, margin=40):
+    """PDF에 넣을 캡처 사진: 글자가 있는 부분만 잘라서 (빈 여백 제거)"""
+    if not paras:
+        return img_path
+    rgb = load_rgb(img_path)
+    h, w = rgb.shape[:2]
+    x0 = max(0, int(min(p.x0 for p in paras)) - margin)
+    y0 = max(0, int(min(p.y0 for p in paras)) - margin)
+    x1 = min(w, int(max(p.x1 for p in paras)) + margin)
+    y1 = min(h, int(max(p.y1 for p in paras)) + margin)
+    save_png(out_path, rgb[y0:y1, x0:x1])
+    return out_path
 
 
 def process(image_paths, out_dir, filter_chrome=True, show_original=True, include_images=False,
@@ -51,8 +65,18 @@ def process(image_paths, out_dir, filter_chrome=True, show_original=True, includ
     stamp = time.strftime("%Y-%m-%d_%H%M")
     pdf_path = os.path.join(out_dir, f"번역_{stamp}.pdf")
     txt_path = os.path.join(out_dir, f"번역_{stamp}.txt")
+    images = None
+    if include_images:
+        images = [_crop_to_text(p, paras, os.path.join(out_dir, f"_crop_{i + 1:03d}.png"))
+                  for i, (p, paras) in enumerate(zip(image_paths, pages))]
     build_pdf(pdf_path, pages, title=title or f"화면 번역 · {time.strftime('%Y-%m-%d %H:%M')}",
-              show_original=show_original, images=image_paths if include_images else None)
+              show_original=show_original, images=images)
+    for im in images or []:
+        if im and os.path.basename(im).startswith("_crop_"):
+            try:
+                os.remove(im)
+            except OSError:
+                pass
     build_text(txt_path, pages)
     report("완료", 1.0)
     return {"pdf": pdf_path, "txt": txt_path, "pages": pages, "warning": warning, "backend": _tr.last_backend}

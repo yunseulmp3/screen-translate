@@ -49,6 +49,21 @@ jobs:
           $p = Start-Process $exe -ArgumentList "--images `"$d\hard1.png`" `"$d\hard2.png`" --out `"C:\st_test\결과_web`" --include-images" -Wait -PassThru
           "web exit=$($p.ExitCode)"
 
+      - name: 실제 화면 녹화 테스트 (페이지 넘김 감지)
+        continue-on-error: true
+        run: |
+          New-Item -ItemType Directory -Force ci-results | Out-Null
+          python tests/live_record.py "C:\st_test\테스트 화면"
+
+      - name: 프로그램 창 스크린샷
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $p = Start-Process "dist\ScreenTranslate\ScreenTranslate.exe" -PassThru
+          Start-Sleep 12
+          python -c "import mss,mss.tools; s=mss.mss(); g=s.grab(s.monitors[1]); mss.tools.to_png(g.rgb,g.size,output='ci-results/gui.png')"
+          Stop-Process $p -Force
+
       - name: 번역 서버 점검
         continue-on-error: true
         run: python tests/probe_translate.py

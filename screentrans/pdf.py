@@ -48,11 +48,10 @@ def build_pdf(path, pages, title="화면 번역", show_original=True, images=Non
     images: 페이지별 캡처 이미지 경로(넣고 싶을 때만)"""
     f, fb = _register_fonts(font)
     ko = ParagraphStyle("ko", fontName=f, fontSize=11, leading=18, textColor=colors.HexColor("#1b1b1b"),
-                        wordWrap="CJK", spaceAfter=1)
+                        spaceAfter=1)  # 한국어는 띄어쓰기 단위로 줄바꿈 (CJK 모드는 단어 중간에서 끊김)
     ko_h = ParagraphStyle("ko_h", parent=ko, fontName=fb, fontSize=15, leading=22, spaceBefore=4)
     ko_b = ParagraphStyle("ko_b", parent=ko, leftIndent=12, bulletIndent=2)
-    en = ParagraphStyle("en", fontName=f, fontSize=8, leading=11.5, textColor=colors.HexColor("#8a8a8a"),
-                        wordWrap="LTR")
+    en = ParagraphStyle("en", fontName=f, fontSize=8, leading=11.5, textColor=colors.HexColor("#8a8a8a"))
     en_b = ParagraphStyle("en_b", parent=en, leftIndent=12)
     tag = ParagraphStyle("tag", fontName=f, fontSize=8, leading=10, textColor=colors.HexColor("#b0b0b0"),
                          spaceAfter=8)
