@@ -112,6 +112,12 @@ def _with_retry(fn, sess, texts, sl, tl, tries=2):
     raise _Blocked(str(last))
 
 
+def _untranslated(src, res):
+    """번역 결과가 원문 그대로 돌아온 경우 (일부 경로는 길이 제한을 넘으면 원문을 그대로 돌려줌)"""
+    return bool(re.search(r"[A-Za-z]{3}", src)) and \
+        re.sub(r"\W+", "", (res or "").lower()) == re.sub(r"\W+", "", src.lower())
+
+
 def translate_many(texts, sl="en", tl="ko", progress=None, backends=None):
     """문단 목록을 몇 개씩 묶어서 번역. 순서·개수 그대로 돌려줌."""
     global last_backend
@@ -131,23 +137,46 @@ def translate_many(texts, sl="en", tl="ko", progress=None, backends=None):
     errors = []
     sess = requests.Session()
     sess.headers["User-Agent"] = UA
-    done = 0
-    for b in batches:
-        chunk = [texts[i] for i in b]
-        while True:
-            if not alive:
-                raise TranslateError(" / ".join(errors) or "번역 경로 없음")
-            name, fn = alive[0]
+
+    def run(chunk, start=0):
+        """살아있는 경로로 번역. 반환 (결과, 사용한 경로 인덱스)"""
+        global last_backend
+        k = start
+        while k < len(alive):
+            name, fn = alive[k]
             try:
                 res = _with_retry(fn, sess, chunk, sl, tl)
                 last_backend = name
-                break
+                return res, k
             except _Blocked as e:
                 errors.append(f"{name}: {e}")
-                alive.pop(0)  # 막힌 길은 버리고 다음 길로
+                if start == 0:
+                    alive.pop(k)  # 막힌 길은 버리고 다음 길로
+                else:
+                    k += 1
+        raise TranslateError(" / ".join(errors) or "번역 경로 없음")
+
+    done = 0
+    for b in batches:
+        res, _ = run([texts[i] for i in b])
         for i, r in zip(b, res):
             out[i] = r.strip()
         done += len(b)
         if progress:
             progress(done / max(1, len(texts)))
+
+    # 원문 그대로 돌아온 문단은 하나씩 다시 (그래도 안 되면 다음 경로로)
+    for i, t in enumerate(texts):
+        if not _untranslated(t, out[i]):
+            continue
+        k = 0
+        while k < len(alive):
+            try:
+                r, used = run([t], start=k)
+            except TranslateError:
+                break
+            if not _untranslated(t, r[0]):
+                out[i] = r[0].strip()
+                break
+            k = used + 1
     return out

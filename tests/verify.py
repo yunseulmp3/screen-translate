@@ -10,9 +10,11 @@ for out, want_pages in zip(sys.argv[1::2], sys.argv[2::2]):
     r = json.load(open(os.path.join(out, "result.json"), encoding="utf-8"))
     txt = open(r["txt"], encoding="utf-8-sig").read()
     hangul = len(re.findall(r"[가-힣]", txt))
-    report.append(f"[{out}] pages={r['pages']} (want {want_pages}) paragraphs={r['paragraphs']} hangul={hangul} warning={r['warning']} backend={r.get('backend')}")
+    blocks = [b.split("\n  └ ") for b in txt.split("\n\n") if "\n  └ " in b]
+    same = [b[1][:40] for b in blocks if b[0].strip() == b[1].strip()]
+    report.append(f"[{out}] pages={r['pages']} (want {want_pages}) paragraphs={r['paragraphs']} hangul={hangul} warning={r['warning']} backend={r.get('backend')} untranslated={len(same)} {same}")
     report.append(txt)
-    if r["pages"] != want_pages or r["warning"] or hangul < 100 or not os.path.getsize(r["pdf"]):
+    if r["pages"] != want_pages or r["warning"] or same or hangul < 100 or not os.path.getsize(r["pdf"]):
         ok = False
     try:
         import pypdfium2 as pdfium
