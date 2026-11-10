@@ -1,0 +1,1 @@
+gui flow: {'fg_before': True, 'fg_after_iconify': True, 'iconic': True, 'paths': 3, 'stats': {'grabbed': 44, 'skipped_own': 0, 'fg_own_minimized': 44}}

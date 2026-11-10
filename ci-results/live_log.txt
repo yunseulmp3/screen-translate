@@ -1,0 +1,2 @@
+monitors: [{'name': '모니터 1 (주 모니터) · 1024×768', 'full': {'left': 0, 'top': 0, 'width': 1024, 'height': 768, 'is_primary': True, 'name': 'Generic PnP Monitor', 'unique_id': '\\\\?\\DISPLAY#MSH062E#5&1a097cd8&0&UID5527112#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}'}, 'work': {'left': 0, 'top': 0, 'width': 1024, 'height': 720}, 'primary': True}]
+live pages=3 err=None

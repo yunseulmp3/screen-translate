@@ -1,0 +1,214 @@
+PASS
+
+[C:\st_test\결과_images] pages=3 (want 3) paragraphs=13 hangul=588 warning=None backend=google untranslated=0 []
+===== 원본 화면 1 / 3 =====
+
+1장. 보컬 체인 설정
+  └ Chapter 1. Setting Up Your Vocal Chain
+
+녹음을 시작하기 전에 오디오 인터페이스가 연결되어 있고 운영 체제에서 인식되는지 확인하세요. 안정적인 연결은 장시간 세션 중에 끊김과 클릭을 방지합니다.
+  └ Before you start recording, make sure your audio interface is connected and recognized by the operating system. A stable connection prevents dropouts and clicks during long sessions.
+
+입력 게인은 가장 큰 프레이즈가 -10dBFS 정도에서 정점에 도달하도록 설정되어야 합니다. 이를 통해 노이즈 플로어를 낮게 유지하면서 예상치 못한 소리나 웃음을 위한 충분한 헤드룸을 확보할 수 있습니다.
+  └ The input gain should be set so that your loudest phrases peak around -10 dBFS. This leaves enough headroom for unexpected shouts or laughter while keeping the noise floor low.
+
+캡슐에서 약 2인치 떨어진 곳에 팝 필터를 사용하십시오.
+  └ Use a pop filter about two inches from the capsule.
+
+마이크와 일정한 거리를 유지하세요.
+  └ Keep a consistent distance from the microphone.
+
+출혈을 방지하기 위해 폐쇄형 헤드폰으로 모니터링하십시오.
+  └ Monitor with closed-back headphones to avoid bleed.
+
+===== 원본 화면 2 / 3 =====
+
+2장. OBS로 라우팅
+  └ Chapter 2. Routing to OBS
+
+하드웨어 루프백을 사용하면 DAW에서 처리된 신호를 인터페이스로 다시 보낼 수 있으며, OBS는 이를 일반 입력 장치로 선택할 수 있습니다. 이는 가상 케이블을 방지하고 대기 시간을 예측 가능하게 유지합니다.
+  └ Hardware loopback lets you send the processed signal from your DAW back into the interface, where OBS can pick it up as a normal input device. This avoids virtual cables and keeps latency predictable.
+
+REAPER에서 스트림 믹스를 위한 전용 출력 버스를 생성합니다. 보컬 트랙, 음악 플레이어 및 알림 사운드를 이 버스로 라우팅한 다음 버스를 인터페이스의 루프백 채널에 할당합니다.
+  └ In REAPER, create a dedicated output bus for the stream mix. Route the vocal track, music player, and notification sounds to this bus, then assign the bus to the loopback channels of your interface.
+
+마지막으로 OBS를 열고 루프백 채널을 새 오디오 입력 캡처 소스로 추가합니다. 말하는 동안 미터를 확인하십시오. 레벨이 너무 높으면 입력 게인 대신 버스 페이더를 낮추십시오.
+  └ Finally, open OBS and add the loopback channel as a new audio input capture source. Check the meters while speaking: if the level is too hot, lower the bus fader rather than the input gain.
+
+===== 원본 화면 3 / 3 =====
+
+문제 해결
+  └ Troubleshooting
+
+자신의 목소리가 두 번 들리면 다이렉트 모니터링과 소프트웨어 모니터링이 모두 활성화된 것입니다. 단일 경로만 헤드폰에 도달하도록 그 중 하나를 끄십시오.
+  └ If you hear your own voice twice, the direct monitoring and the software monitoring are both active. Turn one of them off so that only a single path reaches your headphones.
+
+딱딱거리는 소리나 로봇 같은 아티팩트는 일반적으로 버퍼 크기가 CPU에 비해 ​​너무 작다는 것을 의미합니다. 다른 설정을 변경하기 전에 버퍼를 256개 샘플로 늘리고 다시 테스트하십시오.
+  └ Crackling or robotic artifacts usually mean the buffer size is too small for your CPU. Increase the buffer to 256 samples and test again before changing any other settings.
+
+
+[C:\st_test\결과_video] pages=3 (want 3) paragraphs=13 hangul=588 warning=None backend=google untranslated=0 []
+===== 원본 화면 1 / 3 =====
+
+1장. 보컬 체인 설정
+  └ Chapter 1. Setting Up Your Vocal Chain
+
+녹음을 시작하기 전에 오디오 인터페이스가 연결되어 있고 운영 체제에서 인식되는지 확인하세요. 안정적인 연결은 장시간 세션 중에 끊김과 클릭을 방지합니다.
+  └ Before you start recording, make sure your audio interface is connected and recognized by the operating system. A stable connection prevents dropouts and clicks during long sessions.
+
+입력 게인은 가장 큰 프레이즈가 -10dBFS 정도에서 정점에 도달하도록 설정되어야 합니다. 이를 통해 노이즈 플로어를 낮게 유지하면서 예상치 못한 소리나 웃음을 위한 충분한 헤드룸을 확보할 수 있습니다.
+  └ The input gain should be set so that your loudest phrases peak around -10 dBFS. This leaves enough headroom for unexpected shouts or laughter while keeping the noise floor low.
+
+캡슐에서 약 2인치 떨어진 곳에 팝 필터를 사용하십시오.
+  └ Use a pop filter about two inches from the capsule.
+
+마이크와 일정한 거리를 유지하세요.
+  └ Keep a consistent distance from the microphone.
+
+출혈을 방지하기 위해 폐쇄형 헤드폰으로 모니터링하십시오.
+  └ Monitor with closed-back headphones to avoid bleed.
+
+===== 원본 화면 2 / 3 =====
+
+2장. OBS로 라우팅
+  └ Chapter 2. Routing to OBS
+
+하드웨어 루프백을 사용하면 DAW에서 처리된 신호를 인터페이스로 다시 보낼 수 있으며, OBS는 이를 일반 입력 장치로 선택할 수 있습니다. 이는 가상 케이블을 방지하고 대기 시간을 예측 가능하게 유지합니다.
+  └ Hardware loopback lets you send the processed signal from your DAW back into the interface, where OBS can pick it up as a normal input device. This avoids virtual cables and keeps latency predictable.
+
+REAPER에서 스트림 믹스를 위한 전용 출력 버스를 생성합니다. 보컬 트랙, 음악 플레이어 및 알림 사운드를 이 버스로 라우팅한 다음 버스를 인터페이스의 루프백 채널에 할당합니다.
+  └ In REAPER, create a dedicated output bus for the stream mix. Route the vocal track, music player, and notification sounds to this bus, then assign the bus to the loopback channels of your interface.
+
+마지막으로 OBS를 열고 루프백 채널을 새 오디오 입력 캡처 소스로 추가합니다. 말하는 동안 미터를 확인하십시오. 레벨이 너무 높으면 입력 게인 대신 버스 페이더를 낮추십시오.
+  └ Finally, open OBS and add the loopback channel as a new audio input capture source. Check the meters while speaking: if the level is too hot, lower the bus fader rather than the input gain.
+
+===== 원본 화면 3 / 3 =====
+
+문제 해결
+  └ Troubleshooting
+
+자신의 목소리가 두 번 들리면 다이렉트 모니터링과 소프트웨어 모니터링이 모두 활성화된 것입니다. 단일 경로만 헤드폰에 도달하도록 그 중 하나를 끄십시오.
+  └ If you hear your own voice twice, the direct monitoring and the software monitoring are both active. Turn one of them off so that only a single path reaches your headphones.
+
+딱딱거리는 소리나 로봇 같은 아티팩트는 일반적으로 버퍼 크기가 CPU에 비해 ​​너무 작다는 것을 의미합니다. 다른 설정을 변경하기 전에 버퍼를 256개 샘플로 늘리고 다시 테스트하십시오.
+  └ Crackling or robotic artifacts usually mean the buffer size is too small for your CPU. Increase the buffer to 256 samples and test again before changing any other settings.
+
+
+[C:\st_test\결과_web] pages=2 (want 2) paragraphs=7 hangul=369 warning=None backend=google untranslated=0 []
+===== 원본 화면 1 / 2 =====
+
+스트리밍 설정의 지연 시간 이해
+  └ Understanding Latency in Streaming Setups
+
+대기 시간은 사운드가 마이크에 들어가는 순간과 스피커에서 나오는 순간 사이의 지연입니다. 라이브 스트리밍의 경우 10밀리초 미만의 지연은 대부분의 연주자에게 즉각적으로 느껴지지만 20밀리초가 넘는 지연은 주의를 산만하게 합니다.
+  └ Latency is the delay between the moment a sound enters the microphone and the moment it comes out of the speakers. For live streaming, anything under ten milliseconds feels instant to most performers, while delays above twenty milliseconds become distracting.
+
+의심스러우면 측정해 보세요. 전체 체인을 통해 클릭을 기록하고 기록된 파형을 원본과 비교하여 설정의 실제 왕복 대기 시간을 찾으십시오.
+  └ When in doubt, measure. Record a click through the full chain and compare the recorded waveform with the original to find the real round-trip latency of your setup.
+
+샘플링 속도와 버퍼 크기는 함께 작동합니다. 샘플링 속도가 높을수록 각 버퍼의 시간이 단축되지만 프로세서의 로드도 증가합니다. 대부분의 스트리머는 128 또는 256개 샘플의 버퍼로 48kHz를 잘 제공합니다.
+  └ Sample rate and buffer size work together. A higher sample rate shortens each buffer in time, but it also increases the load on the processor. Most streamers are well served by 48 kHz with a buffer of 128 or 256 samples.
+
+===== 원본 화면 2 / 2 =====
+
+다크 모드 및 스크롤
+  └ Dark Mode and Scrolling
+
+어두운 배경의 텍스트가 밝기 때문에 일부 인식 엔진에서는 어두운 모드 페이지를 읽기가 더 어렵습니다. 이 테스트는 프로그램이 단어 손실 없이 반전된 색상을 처리하는지 확인합니다.
+  └ Dark mode pages are harder to read for some recognition engines, because the text is light on a dark background. This test makes sure the program handles inverted colors without losing words.
+
+단락이 다음 화면으로 계속되면 프로그램은 두 부분을 모두 유지하지만 답변은 제거됩니다.
+  └ If a paragraph continues onto the next screen, the program keeps both parts but removes anrs sd o re p s es re en
+
+
+[C:\st_test\결과_photo] pages=2 (want 2) paragraphs=13 hangul=322 warning=None backend=google untranslated=0 []
+===== 원본 화면 1 / 2 =====
+
+마이 홈 스튜디오 설치
+  └ My Home Studio Setup
+
+이 페이지는 녹화 및 스트리밍을 위해 내 책상이 어떻게 배열되어 있는지 보여줍니다. 이동 후 신속하게 설정을 복원할 수 있도록 모든 케이블에는 라벨이 붙어 있습니다.
+  └ This page shows how my desk is arranged for recording and streaming. Every cable is labeled so that the setup can be restored quickly after moving.
+
+데스크 개요
+  └ DESK OVERVIEW
+
+그림 1. 인터페이스는 왼쪽에 있고 모니터는 중앙에 있습니다.
+  └ Figure 1. The interface sits on the left, monitors in the center.
+
+마이크 암은 오른쪽에 장착되어 화면을 가리지 않습니다. 장시간 세션 중에 팔이 움직이지 않도록 팔을 꽉 조이십시오.
+  └ The microphone arm is mounted on the right side so that it never blocks the screen. Keep the arm tight enough that it does not drift during long sessions.
+
+===== 원본 화면 2 / 2 =====
+
+케이블 라우팅
+  └ Cable Routing
+
+전원 케이블은 책상 뒤쪽 가장자리를 따라 흐르고 오디오 케이블은 앞쪽에 있습니다. 분리하면 잡음이 줄어들고 문제 해결이 훨씬 쉬워집니다.
+  └ Power cables run along the back edge of the desk, while audio cables stay on the front side. Separating them reduces hum and makes troubleshooting much easier.
+
+그림 2. 책상 아래 케이블 트레이.
+  └ Figure 2. Cable tray under the desk.
+
+체크리스트
+  └ Checklist
+
+모든 케이블의 양쪽 끝에 라벨을 붙입니다.
+  └ Label both ends of every cable.
+
+인터페이스와 프리앰프 사이에 짧은 패치 케이블을 사용하십시오.
+  └ Use short patch cables between the interface and the preamp.
+
+손님을 위해 여분의 입력 하나를 무료로 남겨두십시오.
+  └ Leave one spare input free for guests.
+
+그림 3. 라우팅 후 설정이 완료되었습니다.
+  └ Figure 3. Finished setup after routing.
+
+
+[C:\st_test\결과_text] pages=3 (want 3) paragraphs=13 hangul=588 warning=None backend=google untranslated=0 []
+===== 원본 화면 1 / 3 =====
+
+1장. 보컬 체인 설정
+  └ Chapter 1. Setting Up Your Vocal Chain
+
+녹음을 시작하기 전에 오디오 인터페이스가 연결되어 있고 운영 체제에서 인식되는지 확인하세요. 안정적인 연결은 장시간 세션 중에 끊김과 클릭을 방지합니다.
+  └ Before you start recording, make sure your audio interface is connected and recognized by the operating system. A stable connection prevents dropouts and clicks during long sessions.
+
+입력 게인은 가장 큰 프레이즈가 -10dBFS 정도에서 정점에 도달하도록 설정되어야 합니다. 이를 통해 노이즈 플로어를 낮게 유지하면서 예상치 못한 소리나 웃음을 위한 충분한 헤드룸을 확보할 수 있습니다.
+  └ The input gain should be set so that your loudest phrases peak around -10 dBFS. This leaves enough headroom for unexpected shouts or laughter while keeping the noise floor low.
+
+캡슐에서 약 2인치 떨어진 곳에 팝 필터를 사용하십시오.
+  └ Use a pop filter about two inches from the capsule.
+
+마이크와 일정한 거리를 유지하세요.
+  └ Keep a consistent distance from the microphone.
+
+출혈을 방지하기 위해 폐쇄형 헤드폰으로 모니터링하십시오.
+  └ Monitor with closed-back headphones to avoid bleed.
+
+===== 원본 화면 2 / 3 =====
+
+2장. OBS로 라우팅
+  └ Chapter 2. Routing to OBS
+
+하드웨어 루프백을 사용하면 DAW에서 처리된 신호를 인터페이스로 다시 보낼 수 있으며, OBS는 이를 일반 입력 장치로 선택할 수 있습니다. 이는 가상 케이블을 방지하고 대기 시간을 예측 가능하게 유지합니다.
+  └ Hardware loopback lets you send the processed signal from your DAW back into the interface, where OBS can pick it up as a normal input device. This avoids virtual cables and keeps latency predictable.
+
+REAPER에서 스트림 믹스를 위한 전용 출력 버스를 생성합니다. 보컬 트랙, 음악 플레이어 및 알림 사운드를 이 버스로 라우팅한 다음 버스를 인터페이스의 루프백 채널에 할당합니다.
+  └ In REAPER, create a dedicated output bus for the stream mix. Route the vocal track, music player, and notification sounds to this bus, then assign the bus to the loopback channels of your interface.
+
+마지막으로 OBS를 열고 루프백 채널을 새 오디오 입력 캡처 소스로 추가합니다. 말하는 동안 미터를 확인하십시오. 레벨이 너무 높으면 입력 게인 대신 버스 페이더를 낮추십시오.
+  └ Finally, open OBS and add the loopback channel as a new audio input capture source. Check the meters while speaking: if the level is too hot, lower the bus fader rather than the input gain.
+
+===== 원본 화면 3 / 3 =====
+
+문제 해결
+  └ Troubleshooting
+
+자신의 목소리가 두 번 들리면 다이렉트 모니터링과 소프트웨어 모니터링이 모두 활성화된 것입니다. 단일 경로만 헤드폰에 도달하도록 그 중 하나를 끄십시오.
+  └ If you hear your own voice twice, the direct monitoring and the software monitoring are both active. Turn one of them off so that only a single path reaches your headphones.
+
+딱딱거리는 소리나 로봇 같은 아티팩트는 일반적으로 버퍼 크기가 CPU에 비해 ​​너무 작다는 것을 의미합니다. 다른 설정을 변경하기 전에 버퍼를 256개 샘플로 늘리고 다시 테스트하십시오.
+  └ Crackling or robotic artifacts usually mean the buffer size is too small for your CPU. Increase the buffer to 256 samples and test again before changing any other settings.
+

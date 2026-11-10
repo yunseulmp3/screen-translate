@@ -1,0 +1,25 @@
+﻿===== 원본 화면 1 / 2 =====
+
+스트리밍 설정의 지연 시간 이해
+  └ Understanding Latency in Streaming Setups
+
+대기 시간은 사운드가 마이크에 들어가는 순간과 스피커에서 나오는 순간 사이의 지연입니다. 라이브 스트리밍의 경우 10밀리초 미만의 지연은 대부분의 연주자에게 즉각적으로 느껴지지만 20밀리초가 넘는 지연은 주의를 산만하게 합니다.
+  └ Latency is the delay between the moment a sound enters the microphone and the moment it comes out of the speakers. For live streaming, anything under ten milliseconds feels instant to most performers, while delays above twenty milliseconds become distracting.
+
+의심스러우면 측정해 보세요. 전체 체인을 통해 클릭을 기록하고 기록된 파형을 원본과 비교하여 설정의 실제 왕복 대기 시간을 찾으십시오.
+  └ When in doubt, measure. Record a click through the full chain and compare the recorded waveform with the original to find the real round-trip latency of your setup.
+
+샘플링 속도와 버퍼 크기는 함께 작동합니다. 샘플링 속도가 높을수록 각 버퍼의 시간이 단축되지만 프로세서의 로드도 증가합니다. 대부분의 스트리머는 128 또는 256개 샘플의 버퍼로 48kHz를 잘 제공합니다.
+  └ Sample rate and buffer size work together. A higher sample rate shortens each buffer in time, but it also increases the load on the processor. Most streamers are well served by 48 kHz with a buffer of 128 or 256 samples.
+
+===== 원본 화면 2 / 2 =====
+
+다크 모드 및 스크롤
+  └ Dark Mode and Scrolling
+
+어두운 배경의 텍스트가 밝기 때문에 일부 인식 엔진에서는 어두운 모드 페이지를 읽기가 더 어렵습니다. 이 테스트는 프로그램이 단어 손실 없이 반전된 색상을 처리하는지 확인합니다.
+  └ Dark mode pages are harder to read for some recognition engines, because the text is light on a dark background. This test makes sure the program handles inverted colors without losing words.
+
+단락이 다음 화면으로 계속되면 프로그램은 두 부분을 모두 유지하지만 답변은 제거됩니다.
+  └ If a paragraph continues onto the next screen, the program keeps both parts but removes anrs sd o re p s es re en
+

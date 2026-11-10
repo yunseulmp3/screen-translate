@@ -1,0 +1,6 @@
+google: OK ['안녕하세요. 어떻게 지내세요?', '버퍼를 256개 샘플로 늘리고 다시 테스트하십시오.']
+google-dict: OK ['안녕하세요. 어떻게 지내세요?', '버퍼를 256개 샘플로 늘리고 다시 테스트하십시오.']
+microsoft: FAIL _Blocked('HTTP 404')
+google-mobile: FAIL _Blocked('HTTP 429')
+google x13 (1517자): 원문그대로=[]
+google-dict x13 (1517자): 원문그대로=[]
