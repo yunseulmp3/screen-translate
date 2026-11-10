@@ -10,7 +10,7 @@ for out, want_pages in zip(sys.argv[1::2], sys.argv[2::2]):
     r = json.load(open(os.path.join(out, "result.json"), encoding="utf-8"))
     txt = open(r["txt"], encoding="utf-8-sig").read()
     hangul = len(re.findall(r"[가-힣]", txt))
-    report.append(f"[{out}] pages={r['pages']} (want {want_pages}) paragraphs={r['paragraphs']} hangul={hangul} warning={r['warning']}")
+    report.append(f"[{out}] pages={r['pages']} (want {want_pages}) paragraphs={r['paragraphs']} hangul={hangul} warning={r['warning']} backend={r.get('backend')}")
     report.append(txt)
     if r["pages"] != want_pages or r["warning"] or hangul < 100 or not os.path.getsize(r["pdf"]):
         ok = False

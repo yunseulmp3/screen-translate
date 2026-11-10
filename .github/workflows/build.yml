@@ -49,6 +49,10 @@ jobs:
           $p = Start-Process $exe -ArgumentList "--images `"$d\hard1.png`" `"$d\hard2.png`" --out `"C:\st_test\결과_web`" --include-images" -Wait -PassThru
           "web exit=$($p.ExitCode)"
 
+      - name: 번역 서버 점검
+        continue-on-error: true
+        run: python tests/probe_translate.py
+
       - name: 결과 검사
         shell: pwsh
         run: python tests/verify.py "C:\st_test\결과_images" 3 "C:\st_test\결과_video" 3 "C:\st_test\결과_web" 2

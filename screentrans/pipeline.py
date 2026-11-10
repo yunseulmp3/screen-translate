@@ -5,6 +5,7 @@ import time
 from . import layout, ocr
 from .imageio import load_rgb
 from .pdf import build_pdf, build_text
+from . import translate as _tr
 from .translate import TranslateError, translate_many
 
 
@@ -54,4 +55,4 @@ def process(image_paths, out_dir, filter_chrome=True, show_original=True, includ
               show_original=show_original, images=image_paths if include_images else None)
     build_text(txt_path, pages)
     report("완료", 1.0)
-    return {"pdf": pdf_path, "txt": txt_path, "pages": pages, "warning": warning}
+    return {"pdf": pdf_path, "txt": txt_path, "pages": pages, "warning": warning, "backend": _tr.last_backend}

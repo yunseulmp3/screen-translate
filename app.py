@@ -543,7 +543,7 @@ def cli(args):
     if args.video:
         paths += extract_video(args.video, os.path.join(out, "캡처"), start_index=len(paths) + 1)
     res = pipeline.process(paths, out, filter_chrome=True, include_images=args.include_images)
-    summary = {"pages": len(paths), "pdf": res["pdf"], "txt": res["txt"], "warning": res.get("warning"),
+    summary = {"pages": len(paths), "pdf": res["pdf"], "txt": res["txt"], "warning": res.get("warning"), "backend": res.get("backend"),
                "paragraphs": sum(len(p) for p in res["pages"])}
     with open(os.path.join(out, "result.json"), "w", encoding="utf-8") as f:
         json.dump(summary, f, ensure_ascii=False, indent=1)

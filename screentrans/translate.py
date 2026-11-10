@@ -1,59 +1,152 @@
-"""무료 구글 번역(웹 번역기와 같은 엔드포인트)으로 영어 → 한국어."""
-import json
+"""영어 → 한국어 번역 (무료). 구글 번역을 먼저 쓰고, 막히면 자동으로 다른 길로 넘어간다.
+
+순서: 구글(gtx) → 구글(크롬 사전 확장 경로) → 마이크로소프트(엣지 내장 번역) → 구글 모바일 페이지
+한 번 막힌 길은 이번 작업 동안 다시 쓰지 않음.
+"""
+import html
+import re
 import time
 
 import requests
 
-URL = "https://translate.googleapis.com/translate_a/single"
+UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
 MAX_CHARS = 1800
+
+last_backend = None  # 마지막으로 성공한 번역 경로 이름(로그·테스트용)
 
 
 class TranslateError(RuntimeError):
     pass
 
 
-def _call(text, sl="en", tl="ko", session=None, retries=4):
-    s = session or requests
+class _Blocked(Exception):
+    pass
+
+
+def _check(r):
+    if r.status_code != 200:
+        raise _Blocked(f"HTTP {r.status_code}")
+
+
+# ── 각 번역 경로: 문자열 목록을 받아 같은 개수의 번역 목록을 돌려줌 ──
+
+def _gtx_one(sess, text, sl, tl):
+    r = sess.get("https://translate.googleapis.com/translate_a/single",
+                 params={"client": "gtx", "sl": sl, "tl": tl, "dt": "t", "dj": "1", "q": text}, timeout=20)
+    _check(r)
+    return "".join(s.get("trans", "") for s in r.json().get("sentences", []))
+
+
+def _google_gtx(sess, texts, sl, tl):
+    # 여러 문단을 줄바꿈으로 묶어 한 번에 → 줄 수가 어긋나면 하나씩
+    res = _gtx_one(sess, "\n".join(texts), sl, tl).split("\n")
+    if len(res) == len(texts):
+        return res
+    return [_gtx_one(sess, t, sl, tl) for t in texts]
+
+
+def _google_dict(sess, texts, sl, tl):
+    r = sess.get("https://clients5.google.com/translate_a/t",
+                 params=[("client", "dict-chrome-ex"), ("sl", sl), ("tl", tl)] + [("q", t) for t in texts], timeout=20)
+    _check(r)
+    data = r.json()
+    if len(texts) == 1 and isinstance(data, list) and data and isinstance(data[0], str):
+        data = [data[0]]
+    out = []
+    for d in data:
+        while isinstance(d, list):
+            d = d[0] if d else ""
+        out.append(str(d))
+    if len(out) != len(texts):
+        raise _Blocked("응답 개수 불일치")
+    return out
+
+
+_edge_token = {"v": None, "t": 0}
+
+
+def _edge(sess, texts, sl, tl):
+    if not _edge_token["v"] or time.time() - _edge_token["t"] > 500:
+        r = sess.get("https://edge.microsoft.com/translate/auth", timeout=15)
+        _check(r)
+        _edge_token.update(v=r.text.strip(), t=time.time())
+    r = sess.post("https://api-edge.cognitive.microsofttranslator.com/translate",
+                  params={"from": sl, "to": tl, "api-version": "3.0"},
+                  headers={"Authorization": "Bearer " + _edge_token["v"], "Content-Type": "application/json"},
+                  json=[{"Text": t} for t in texts], timeout=30)
+    if r.status_code == 401:
+        _edge_token["v"] = None
+    _check(r)
+    return [d["translations"][0]["text"] for d in r.json()]
+
+
+_RESULT_RE = re.compile(r'<div class="result-container">(.*?)</div>', re.S)
+
+
+def _google_mobile(sess, texts, sl, tl):
+    out = []
+    for t in texts:
+        r = sess.get("https://translate.google.com/m", params={"sl": sl, "tl": tl, "q": t, "hl": "ko"}, timeout=20)
+        _check(r)
+        m = _RESULT_RE.search(r.text)
+        if not m:
+            raise _Blocked("결과 없음")
+        out.append(html.unescape(m.group(1)))
+    return out
+
+
+BACKENDS = [("google", _google_gtx), ("google-dict", _google_dict), ("microsoft", _edge), ("google-mobile", _google_mobile)]
+
+
+def _with_retry(fn, sess, texts, sl, tl, tries=2):
     last = None
-    for attempt in range(retries):
+    for i in range(tries):
         try:
-            r = s.get(URL, params={"client": "gtx", "sl": sl, "tl": tl, "dt": "t", "dj": "1", "q": text},
-                      timeout=20,
-                      headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
-            if r.status_code == 200:
-                data = r.json()
-                return "".join(seg.get("trans", "") for seg in data.get("sentences", []))
-            last = f"HTTP {r.status_code}"
-        except (requests.RequestException, ValueError, json.JSONDecodeError) as e:
-            last = str(e)
-        time.sleep(1.5 * (attempt + 1))
-    raise TranslateError("번역 서버 응답 실패: " + str(last))
+            res = fn(sess, texts, sl, tl)
+            if len(res) != len(texts):
+                raise _Blocked("응답 개수 불일치")
+            return res
+        except (_Blocked, requests.RequestException, ValueError, KeyError, IndexError, TypeError) as e:
+            last = e
+            time.sleep(1.0 + i)
+    raise _Blocked(str(last))
 
 
-def translate_many(texts, sl="en", tl="ko", progress=None):
-    """문단 목록을 몇 개씩 묶어서 번역 (요청 횟수를 줄여 차단 방지). 순서·개수 그대로 돌려줌."""
-    out = [None] * len(texts)
-    sess = requests.Session()
+def translate_many(texts, sl="en", tl="ko", progress=None, backends=None):
+    """문단 목록을 몇 개씩 묶어서 번역. 순서·개수 그대로 돌려줌."""
+    global last_backend
+    texts = [t.replace("\n", " ").strip() for t in texts]
+    out = [""] * len(texts)
     batches, cur, size = [], [], 0
     for i, t in enumerate(texts):
-        t = t.replace("\n", " ").strip()
-        if cur and size + len(t) + 1 > MAX_CHARS:
+        if cur and (size + len(t) + 1 > MAX_CHARS or len(cur) >= 25):
             batches.append(cur)
             cur, size = [], 0
-        cur.append((i, t))
+        cur.append(i)
         size += len(t) + 1
     if cur:
         batches.append(cur)
+
+    alive = list(backends or BACKENDS)
+    errors = []
+    sess = requests.Session()
+    sess.headers["User-Agent"] = UA
     done = 0
     for b in batches:
-        joined = "\n".join(t for _, t in b)
-        res = _call(joined, sl, tl, sess).split("\n")
-        if len(res) == len(b):
-            for (i, _), r in zip(b, res):
-                out[i] = r.strip()
-        else:  # 줄 수가 어긋나면 하나씩 다시
-            for i, t in b:
-                out[i] = _call(t, sl, tl, sess).strip()
+        chunk = [texts[i] for i in b]
+        while True:
+            if not alive:
+                raise TranslateError(" / ".join(errors) or "번역 경로 없음")
+            name, fn = alive[0]
+            try:
+                res = _with_retry(fn, sess, chunk, sl, tl)
+                last_backend = name
+                break
+            except _Blocked as e:
+                errors.append(f"{name}: {e}")
+                alive.pop(0)  # 막힌 길은 버리고 다음 길로
+        for i, r in zip(b, res):
+            out[i] = r.strip()
         done += len(b)
         if progress:
             progress(done / max(1, len(texts)))

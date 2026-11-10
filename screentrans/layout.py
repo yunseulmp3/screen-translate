@@ -235,19 +235,25 @@ def remove_screen_chrome(pages_lines, frame_h):
              for lines in pages_lines]
     out = []
     for lines in pages_lines:
-        keep = []
-        for l in lines:
-            nt = _norm(l.text)
-            if not nt or not re.search(r"[A-Za-z]", l.text):
-                continue  # 숫자·기호만 → 쪽번호 등
-            if n >= 2:
+        repeated = set()
+        if n >= 2:
+            for idx, l in enumerate(lines):
+                nt = _norm(l.text)
                 k = (nt, round((l.x0 + l.x1) / 24), round(l.cy / 12))
-                hits = 0
-                for ks in keyed:
-                    if any(kk[0] == k[0] and abs(kk[1] - k[1]) <= 1 and abs(kk[2] - k[2]) <= 1 for kk in ks):
-                        hits += 1
-                if hits >= need:
-                    continue
+                hits = sum(1 for ks in keyed
+                           if any(kk[0] == k[0] and abs(kk[1] - k[1]) <= 1 and abs(kk[2] - k[2]) <= 1 for kk in ks))
+                if nt and hits >= need:
+                    repeated.add(idx)
+            # 안전장치: 반복 줄이 페이지 글자의 절반 이상이면 '같은 문서를 두 번 찍은 것'으로 보고 지우지 않음
+            total = sum(len(l.text) for l in lines) or 1
+            if sum(len(lines[i].text) for i in repeated) > 0.5 * total:
+                repeated = set()
+        keep = []
+        for idx, l in enumerate(lines):
+            if idx in repeated:
+                continue  # 매 화면 같은 자리에 반복 → 프로그램 메뉴/고정 머리글
+            if not re.search(r"[A-Za-z]", l.text):
+                continue  # 숫자·기호만 → 쪽번호 등
             if l.cy < 0.045 * frame_h:
                 continue  # 창 제목줄/메뉴줄
             if l.cy < 0.09 * frame_h and (len(l.text) < 40 or URL_RE.search(l.text)):
