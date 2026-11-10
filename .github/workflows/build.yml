@@ -1,0 +1,82 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 설치
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller pypdfium2
+
+      - name: exe 만들기
+        run: >
+          pyinstaller --noconfirm --windowed --name ScreenTranslate
+          --icon icon.ico --add-data "icon.ico;."
+          --collect-all rapidocr
+          app.py
+
+      - name: 테스트 자료 만들기 (한글 경로 포함)
+        shell: pwsh
+        run: |
+          python tests/make_screens.py "C:\st_test\테스트 화면"
+          python tests/make_hard.py "C:\st_test\테스트 화면\hard1.png" "C:\st_test\테스트 화면\hard2.png"
+          python tests/make_video.py "C:\st_test\테스트 화면\screen1.png" "C:\st_test\테스트 화면\screen2.png" "C:\st_test\테스트 화면\screen3.png" "C:\st_test\테스트 화면\녹화 영상.mp4"
+
+      - name: 만든 exe로 실제 실행 (이미지 3장 / 영상 / 2단 웹페이지)
+        shell: pwsh
+        run: |
+          $exe = "dist\ScreenTranslate\ScreenTranslate.exe"
+          $d = "C:\st_test\테스트 화면"
+          $p = Start-Process $exe -ArgumentList "--images `"$d\screen1.png`" `"$d\screen2.png`" `"$d\screen3.png`" --out `"C:\st_test\결과_images`"" -Wait -PassThru
+          "images exit=$($p.ExitCode)"
+          $p = Start-Process $exe -ArgumentList "--video `"$d\녹화 영상.mp4`" --out `"C:\st_test\결과_video`"" -Wait -PassThru
+          "video exit=$($p.ExitCode)"
+          $p = Start-Process $exe -ArgumentList "--images `"$d\hard1.png`" `"$d\hard2.png`" --out `"C:\st_test\결과_web`" --include-images" -Wait -PassThru
+          "web exit=$($p.ExitCode)"
+
+      - name: 결과 검사
+        shell: pwsh
+        run: python tests/verify.py "C:\st_test\결과_images" 3 "C:\st_test\결과_video" 3 "C:\st_test\결과_web" 2
+
+      - name: 검사 결과를 ci-results 브랜치에 기록
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force ci-results | Out-Null
+          Get-ChildItem C:\st_test -Recurse -Filter *.txt | Where-Object { $_.Name -like "번역_*" } | ForEach-Object { Copy-Item $_.FullName ("ci-results\" + $_.Directory.Name + "_" + $_.Name) }
+          Get-ChildItem C:\st_test -Recurse -Filter error.txt | ForEach-Object { Copy-Item $_.FullName ("ci-results\" + $_.Directory.Name + "_error.txt") }
+          git config user.name "ci"
+          git config user.email "ci@users.noreply.github.com"
+          git checkout --orphan ci-results-tmp
+          git rm -rf --cached . | Out-Null
+          git add -f ci-results
+          git commit -m "CI 결과 $env:GITHUB_SHA" | Out-Null
+          git push -f origin HEAD:ci-results
+
+      - name: 배포용 zip
+        shell: pwsh
+        run: Compress-Archive -Path dist\ScreenTranslate\* -DestinationPath ScreenTranslate.zip
+
+      - name: 최신 버전 릴리스 갱신
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag 2>$null
+          $notes = "ScreenTranslate.zip 받아서 압축 풀고 ScreenTranslate.exe 실행 (커밋 $env:GITHUB_SHA)"
+          gh release create latest ScreenTranslate.zip --title "화면번역 최신 버전" --notes $notes --target $env:GITHUB_SHA

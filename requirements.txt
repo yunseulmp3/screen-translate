@@ -1,0 +1,9 @@
+rapidocr==3.10.0
+onnxruntime>=1.18
+opencv-python-headless>=4.9
+numpy>=1.26,<3
+mss>=9.0
+reportlab>=4.0
+requests>=2.31
+keyboard==0.13.5
+Pillow>=10
