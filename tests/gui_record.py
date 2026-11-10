@@ -12,25 +12,22 @@ def fake_pipeline(paths, session, filter_chrome):
     a.root.after(200, a.root.destroy)
 a.run_pipeline = fake_pipeline
 u = ctypes.windll.user32
-viewer = None
+viewer = subprocess.Popen([sys.executable, os.path.join(os.path.dirname(__file__), "show_pages.py"), src, "6.0"])
 def start():
-    global viewer
     a.root.deiconify(); a.root.focus_force(); a.root.update()
     res["fg_before"] = u.GetForegroundWindow() == a.own_hwnd
     a.toggle()  # = 버튼 클릭
     res["fg_after_iconify"] = u.GetForegroundWindow() == a.own_hwnd
     res["iconic"] = bool(u.IsIconic(a.own_hwnd))
-    viewer = subprocess.Popen([sys.executable, os.path.join(os.path.dirname(__file__), "show_pages.py"), src, "2.0"])
 def stop():
     a.toggle()  # = F9
     res["stats"] = dict(a.recorder.stats) if a.recorder else None
-a.root.after(1500, lambda: (a.root.focus_force(), start()))
-a.root.after(1500 + 12000, lambda: (res.__setitem__("stats", None), None))
+a.root.after(3000, start)  # 뷰어가 1페이지를 띄운 뒤 '녹화 시작' 클릭
 def stop2():
     rec = a.recorder
     a.toggle()
     res["stats"] = rec.stats
-a.root.after(1500 + 12500, stop2)
+a.root.after(14500, stop2)  # 넘김(6~12.5초) 끝난 뒤 F9
 a.root.mainloop()
 if viewer: viewer.wait(timeout=20)
 msg = f"gui flow: {res}"
