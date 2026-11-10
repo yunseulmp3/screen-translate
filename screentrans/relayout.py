@@ -155,77 +155,79 @@ def _wrap(text, font, fs, width):
     return lines
 
 
-def fit_text(text, font, box_w, box_h, line_h, pitch, max_w=None):
-    """원래 줄 높이(line_h)에 맞는 글자 크기에서 시작해, 박스에 들어갈 때까지 조금씩 줄인다.
-    반환: (글자크기, 줄간격, 줄 목록, 실제 폭)"""
-    fs0 = line_h * 0.66
-    ratio = (pitch / fs0) if pitch else 1.45
-    ratio = min(max(ratio, 1.25), 2.2)
-    width = box_w
+def fit_text(text, font, box_w, fs0, lead_ratio, max_lines_h, max_w=None):
+    """원래 글자 크기(fs0)에서 시작해, 원래 문단 높이 안에 들어갈 때까지 조금씩 줄인다.
+    반환: (글자크기, 줄간격, 줄 목록)"""
     fs = fs0
     while True:
+        width = box_w
         lines = _wrap(text, font, fs, width)
-        if len(lines) == 1 and max_w and stringWidth(lines[0], font, fs) > width:
-            width = min(max_w, stringWidth(lines[0], font, fs) + 1)
-            lines = _wrap(text, font, fs, width)
-        need = (len(lines) - 1) * fs * ratio + line_h * 0.9
-        if need <= box_h + 0.35 * line_h or fs <= fs0 * 0.6:
-            return fs, fs * ratio, lines, width
-        fs *= 0.94
+        if len(lines) > 1 and max_w and max_w > box_w:
+            # 한 줄짜리 원문(제목 등)이 한국어로 길어지면 오른쪽 빈 공간까지 써서 한 줄 유지
+            if stringWidth(text, font, fs) <= max_w:
+                lines = [text]
+        need = (len(lines) - 1) * fs * lead_ratio
+        if need <= max_lines_h or fs <= fs0 * 0.6:
+            return fs, fs * lead_ratio, lines
+        fs *= 0.95
+
+
+# ───────── 글자 픽셀 분석 ─────────
+
+def line_metrics(rgb, ln, bg):
+    """OCR 상자 안의 실제 글자 픽셀로: 시작 x, x높이(소문자 몸통 높이), 기준선 y, 굵기, 글머리표"""
+    x0, y0, x1, y1 = [int(round(v)) for v in (ln.x0, ln.y0, ln.x1, ln.y1)]
+    reg = rgb[max(0, y0):y1, max(0, x0):x1].astype(int)
+    if reg.size == 0:
+        return None
+    ink = np.abs(reg - np.array(bg)).max(axis=2) > 60
+    colany = ink.any(axis=0)
+    cols = np.where(colany)[0]
+    if len(cols) < 3:
+        return None
+    rc = ink.sum(axis=1)
+    band = np.where(rc >= 0.4 * rc.max())[0]
+    b0, b1 = int(band[0]), int(band[-1])
+    xh = b1 - b0 + 1
+    c0, c1 = int(cols[0]), int(cols[-1])
+    density = ink[b0:b1 + 1, c0:c1 + 1].sum() / float(xh * (c1 - c0 + 1))
+    m = {"x": x0 + c0, "xh": float(xh), "base": y0 + b1 + 1, "density": float(density), "bullet": None}
+    # 첫 덩어리가 작고 꽉 찬 점/짧은 선 + 뒤에 빈칸 → 글머리표
+    i = c0
+    while i < len(colany) and colany[i]:
+        i += 1
+    j = i
+    while j < len(colany) and not colany[j]:
+        j += 1
+    if j < len(colany) and (j - i) >= 0.25 * xh:
+        blob = ink[:, c0:i]
+        rows = np.where(blob.any(axis=1))[0]
+        if len(rows):
+            bh, bw = rows[-1] - rows[0] + 1, i - c0
+            fill = blob[rows[0]:rows[-1] + 1].sum() / float(bh * bw)
+            cy = (rows[0] + rows[-1]) / 2
+            if bw <= 0.9 * xh and bh <= 0.9 * xh and fill > 0.55 and b0 - 1 <= cy <= b1 + 1:
+                m["bullet"] = (x0 + c0, x0 + j, "–" if bw > 2 * bh else "•")
+    return m
+
+
+def size_classes(xhs):
+    """x높이가 비슷한(±12%) 문단끼리 같은 글자 크기로 통일 → 같은 목록 항목끼리 크기가 들쭉날쭉하지 않게"""
+    order = sorted(range(len(xhs)), key=lambda i: xhs[i])
+    out = [None] * len(xhs)
+    group = []
+    for i in order + [None]:
+        if i is None or (group and xhs[i] > xhs[group[0]] * 1.12):
+            med = float(np.median([xhs[g] for g in group])) if group else 0
+            for g in group:
+                out[g] = med
+            group = []
+        if i is not None:
+            group.append(i)
+    return out
 
 
 # ───────── 페이지 그리기 ─────────
-
-def ink_left(rgb, ln, bg):
-    """OCR 상자는 여백이 조금 붙어 있어서, 실제 글자가 시작되는 x를 픽셀로 찾는다."""
-    x0, y0, x1, y1 = [int(round(v)) for v in (ln.x0, ln.y0, ln.x1, ln.y1)]
-    reg = rgb[max(0, y0):y1, max(0, x0):x1].astype(int)
-    if reg.size == 0:
-        return None
-    cols = np.where((np.abs(reg - np.array(bg)).max(axis=2) > 60).any(axis=0))[0]
-    return x0 + int(cols[0]) if len(cols) else None
-
-
-def text_start_after_bullet(rgb, ln, bg):
-    """글머리표가 있는 줄에서 '기호 다음 글자'가 시작되는 x를 픽셀로 찾는다 (원본 들여쓰기 그대로)."""
-    x0, y0, x1, y1 = [int(round(v)) for v in (ln.x0, ln.y0, ln.x1, ln.y1)]
-    reg = rgb[max(0, y0):y1, max(0, x0):x1].astype(int)
-    if reg.size == 0:
-        return None
-    ink = (np.abs(reg - np.array(bg)).max(axis=2) > 60).any(axis=0)
-    cols = np.where(ink)[0]
-    if len(cols) == 0:
-        return None
-    i = cols[0]
-    while i < len(ink) and ink[i]:
-        i += 1  # 기호 덩어리 지나감
-    gap_start = i
-    while i < len(ink) and not ink[i]:
-        i += 1  # 빈칸
-    if i >= len(ink) or i - gap_start < 2:
-        return None
-    return x0 + i
-
-
-def size_classes(paras):
-    """OCR 줄 높이는 g·p 같은 아래로 내려가는 글자 유무로 들쭉날쭉함 →
-    비슷한 높이(±15%)끼리 묶어서 같은 글자 크기로 통일 (같은 목록 항목끼리 크기가 달라지지 않게)"""
-    hs = sorted((float(np.median([l.h for l in p.lines])), i) for i, p in enumerate(paras))
-    ref = {}
-    group = []
-    for h, i in hs:
-        if group and h > group[0][0] * 1.15:
-            m = max(g[0] for g in group)
-            for _, j in group:
-                ref[j] = m
-            group = []
-        group.append((h, i))
-    if group:
-        m = max(g[0] for g in group)
-        for _, j in group:
-            ref[j] = m
-    return ref
-
 
 def render_page(c, rgb, paras, area, font, font_b):
     ax0, ay0, ax1, ay1 = area
@@ -237,7 +239,7 @@ def render_page(c, rgb, paras, area, font, font_b):
 
     page_bg = page_background(rgb, paras)
     plans = []
-    for i, p in enumerate(paras):
+    for p in paras:
         if not (p.translated or "").strip():
             continue
         if p.x1 < ax0 or p.x0 > ax1 or p.y1 < ay0 or p.y0 > ay1:
@@ -246,6 +248,9 @@ def render_page(c, rgb, paras, area, font, font_b):
         if not all(ok for _, ok in cls):
             continue  # 사진 위 글자 → 원본 유지
         bg0 = cls[0][0]
+        mets = [line_metrics(rgb, ln, lb) for ln, (lb, _) in zip(p.lines, cls)]
+        if mets[0] is None:
+            continue
         color = text_color_of(rgb, (p.lines[0].x0, p.lines[0].y0, p.lines[0].x1, p.lines[0].y1), bg0)
         # 영어 줄 지우기 (줄마다 그 둘레 배경색으로)
         for ln, (lb, _) in zip(p.lines, cls):
@@ -253,36 +258,45 @@ def render_page(c, rgb, paras, area, font, font_b):
             X0, Y0 = int(ln.x0 - px - ax0), int(ln.y0 - py - ay0)
             X1, Y1 = int(np.ceil(ln.x1 + px - ax0)), int(np.ceil(ln.y1 + py - ay0))
             img[max(0, Y0):max(0, Y1), max(0, X0):max(0, X1)] = lb
-        plans.append((p, color, bg0))
+        plans.append({"p": p, "color": color, "mets": [m for m in mets if m]})
 
     c.drawImage(ImageReader(Image.fromarray(img)), 0, 0, width=PAGE_W, height=page_h)
+    if not plans:
+        c.showPage()
+        return
 
-    ref_h = size_classes([p for p, _, _ in plans])
-    for idx, (p, color, bgc) in enumerate(plans):
-        lines = p.lines
-        line_h = ref_h.get(idx, float(np.median([l.h for l in lines])))
-        pitch = float(np.median([b.y0 - a.y0 for a, b in zip(lines, lines[1:])])) if len(lines) > 1 else None
-        f = font_b if p.kind == "h" else font
-        x_ink = ink_left(rgb, lines[0], bgc) or p.x0
-        x_text = x_ink
-        bullet = False
-        if p.kind == "b" and BULLET_RE.match(lines[0].text) and not BULLET_RE.match(p.text):
-            bullet = True  # 원본 글머리표 기호도 같이 지워졌으니 다시 그림
-            x_text = text_start_after_bullet(rgb, lines[0], bgc) or (x_ink + line_h * 0.95)
-        box_w = p.x1 - x_text
-        others_right = [q.x0 for q, _, _ in plans if q is not p and q.x0 > p.x1 and q.y0 < p.y1 and q.y1 > p.y0]
-        max_w = (min(others_right) - 10 if others_right else ax1 - 12) - x_text
-        fs, lead, out_lines, _ = fit_text(p.translated.strip(), f, box_w, p.y1 - p.y0, line_h, pitch,
-                                          max_w=max_w if len(lines) == 1 else None)
-        c.setFillColorRGB(*[v / 255 for v in color])
-        top = p.y0 - ay0
-        for k, t in enumerate(out_lines):
-            base_img = top + line_h / 2 + fs * 0.36 + k * lead  # 줄 가운데에 글자 높이 맞춤
-            y_pdf = page_h - base_img * s
-            c.setFont(f, fs * s)
+    xhs = [float(np.median([m["xh"] for m in pl["mets"]])) for pl in plans]
+    xh_ref = size_classes(xhs)
+    dens = [float(np.median([m["density"] for m in pl["mets"]])) for pl in plans]
+    dens_med = float(np.median(dens))
+
+    for k, pl in enumerate(plans):
+        p, m0, mets = pl["p"], pl["mets"][0], pl["mets"]
+        bold = dens[k] >= 1.15 * dens_med or (p.kind == "h" and dens[k] >= 1.1 * dens_med)
+        f = font_b if bold else font
+        x_mark, x_text, mark = m0["x"], m0["x"], None
+        if m0["bullet"]:
+            x_mark, x_text, mark = m0["bullet"]
+        elif p.kind == "b" and BULLET_RE.match(p.lines[0].text) and not BULLET_RE.match(p.text):
+            mark, x_text = "•", m0["x"] + xh_ref[k] * 2.2
+        fs0 = xh_ref[k] * 1.8  # 영어 소문자 몸통 높이 → 한국어 글자 크기
+        bases = [m["base"] for m in mets]
+        pitch = float(np.median(np.diff(bases))) if len(bases) > 1 else fs0 * 1.5
+        lead_ratio = min(max(pitch / fs0, 1.2), 2.2)
+        max_lines_h = (len(p.lines) - 1) * pitch + 0.45 * pitch
+        others_right = [q["p"].x0 for q in plans if q["p"] is not p and q["p"].x0 > p.x1
+                        and q["p"].y0 < p.y1 and q["p"].y1 > p.y0]
+        right_limit = (min(others_right) - 10) if others_right else (ax1 - 12)
+        fs, lead, out_lines = fit_text(p.translated.strip(), f, p.x1 - x_text + 2, fs0, lead_ratio, max_lines_h,
+                                       max_w=(right_limit - x_text) if len(p.lines) == 1 else None)
+        c.setFillColorRGB(*[v / 255 for v in pl["color"]])
+        c.setFont(f, fs * s)
+        for i, t in enumerate(out_lines):
+            base = bases[0] + i * lead  # 원문 첫 줄 기준선에 맞춤
+            y_pdf = page_h - (base - ay0) * s
             c.drawString((x_text - ax0) * s, y_pdf, t)
-            if bullet and k == 0:
-                c.drawString((x_ink - ax0) * s, y_pdf, "•")
+            if mark and i == 0:
+                c.drawString((x_mark - ax0) * s, y_pdf, mark)
     c.showPage()
 
 
